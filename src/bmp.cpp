@@ -15,128 +15,78 @@
 #include <cmath>
 #include "bmp.h"
 
-inline uint32_t BMP::RGB_RED(uint32_t r, uint32_t c)
-{
-    return (rgb + (r) * head.info.biWidth + (c))->red;
-}
-
-inline uint32_t BMP::RGB_GREEN(uint32_t r, uint32_t c)
-{
-    return (rgb + (r) * head.info.biWidth + (c))->green;
-}
-
-inline uint32_t BMP::RGB_BLUE(uint32_t r, uint32_t c)
-{
-    return (rgb + (r) * head.info.biWidth + (c))->blue;
-}
-
-inline uint32_t BMP::RGB_GARY(uint32_t r, uint32_t c)
-{
-    return ((rgb + (r) * head.info.biWidth + (c))->red  + \
-           (rgb + (r) * head.info.biWidth + (c))->green + \
-           (rgb + (r) * head.info.biWidth + (c))->blue) / 3;
-}
-
-inline uint32_t BMP::RGB_SUM_DEL(uint32_t r1, uint32_t c1, uint32_t r2, uint32_t c2)
-{
-    return  (RGB_RED(r1, c1)   - RGB_RED(r2, c2))   * (RGB_RED(r1, c1)   - RGB_RED(r2, c2))   + \
-            (RGB_GREEN(r1, c1) - RGB_GREEN(r2, c2)) * (RGB_GREEN(r1, c1) - RGB_GREEN(r2, c2)) + \
-            (RGB_BLUE(r1, c1)  - RGB_BLUE(r2, c2))  * (RGB_BLUE(r1, c1)  - RGB_BLUE(r2, c2));
-}
-
-/**
- * @description: 构造函数
- */
-
-BMP::BMP()
-{
-    memset(this, 0, sizeof(BMP));
-}
-
-/**
- * @description: 构造函数
- * @param {type}    width {uint32_t}: 图像的宽度
- *                  height {uint32_t}: 图像的高度
- */
-BMP::BMP(uint32_t width, uint32_t height)
-{
-    setBMPInfo(RGB, width, height);
-    memset(rgb, 0, sizeof(RGBInfoNode) * head.info.biWidth * head.info.biHeight);
-}
-
 /**
  * @description: 构造函数
  * @param {type}    rgbInfo {RGBInfoNode *}: 储存rgb信息的数组首地址
  *                  width {uint32_t}: 图像的宽度
  *                  height {uint32_t}: 图像的高度
  */
-void BMP::create(RGBInfoNode *rgbInfo, uint32_t width, uint32_t height)
-{
-    setBMPInfo(RGB, width, height);
-    memcpy(rgb, rgbInfo, sizeof(RGBInfoNode) * width * height);
-}
+BMP::BMP(){}
 
 BMP::BMP(RGBInfoNode *rgbInfo, uint32_t width, uint32_t height)
 {
-    create(rgbInfo, width, height);
+    setBMPInfo(width, height);
+    deleteArray(gary);
+    applyArray(rgb);
+    fill(rgbInfo, 0, 0, width, height);
+}
+
+BMP::BMP(uint8_t *garyInfo, uint32_t width, uint32_t height)
+{
+    setBMPInfo(width, height);
+    deleteArray(rgb);
+    applyArray(gary);
+    fill(garyInfo, 0, 0, width, height);
+}
+
+BMP::~BMP()
+{
+    deleteArray(rgb);
+    deleteArray(gary);
 }
 
 /**
- * @description: 构造函数
- * @param {type}    rgbInfo {RGBInfoNode *}: 储存rgb信息的数组首地址
- *                  width {uint32_t}: 图像的宽度
- *                  height {uint32_t}: 图像的高度
+ * @description: 撤销/申请rgb动态数组内存
+* @param {type}    rgb / gary
  */
-void BMP::create(ImageType type, uint8_t *colorInfo, uint32_t width, uint32_t height, uint8_t threshold)
+template <typename T>
+void BMP::deleteArray(T** &array) 
 {
-    rgb  = NULL;
-    gary = NULL;
-    if (type == GARY)
-    {
-        setBMPInfo(type, width, height);
-        for (uint32_t r = 0; r < head.info.biHeight; ++r)
-        {
-            for (uint32_t c = 0; c < head.info.biWidth; ++c)
-            {
-                *(gary + r * head.info.biWidth + c) = *(colorInfo + r * head.info.biWidth + c);
-            }
+    if (array != NULL) {
+        for (uint32_t h = 0; h < head.info.biHeight; ++h) {
+            delete[] array[h];
+            array[h] = NULL;
         }
-    }
-    else if (type == BINARY)
-    {
-        setBMPInfo(type, width, height);
-        for (uint32_t r = 0; r < head.info.biHeight; ++r)
-        {
-            for (uint32_t c = 0; c < head.info.biWidth; ++c)
-            {
-                if (*(colorInfo + r * head.info.biWidth + c) < threshold) {
-                    *(gary + r * head.info.biWidth + c) = 0;
-                }
-                else {
-                    *(gary + r * head.info.biWidth + c) = 1;
-                }
-            }
-        }
-    }
-    else {
-        std::cout << __FILE__ << "," << __func__ << "," << __LINE__ << " Please set image type: GARY or BINARY.\n" << std::endl;
-        exit(-1);
+        delete[] array;
+        array = NULL;
     }
 }
 
-BMP::BMP(ImageType type, uint8_t *colorInfo, uint32_t width, uint32_t height, uint8_t threshold)
+template <typename T>
+void BMP::applyArray(T** &array)
 {
-    create(type, colorInfo, width, height, threshold);
+    deleteArray(array);
+    array = new T*[head.info.biHeight];
+    if (array == NULL) {
+        printf("Fatal: Malloc failed to allocate memory. Memory release failure.\n");
+        exit(-1);
+    }
+    for (uint32_t h = 0; h < head.info.biHeight; ++h) {
+        array[h] = new T[head.info.biWidth];
+        if (array[h] == NULL) {
+            printf("Fatal: Malloc failed to allocate memory. Memory release failure.\n");
+            exit(-1);
+        }
+    }
 }
 
 /**
  * @description:
- * @param {type}    rgbInfo {RGBInfoNode *}: 储存rgb信息的数组首地址
- *                  width {uint32_t}: 图像的宽度
+ * @param {type}    width {uint32_t}: 图像的宽度
  *                  height {uint32_t}: 图像的高度
  * @return:
  */
-void BMP::setBMPInfo(ImageType type, uint32_t width, uint32_t height)
+void BMP::setBMPInfo(uint32_t width, uint32_t height)
 {
 #ifdef _WIN32
     bfType                    = 19778;      // 2byte，位图文件的类型，标识，就是“BM”二字
@@ -156,304 +106,16 @@ void BMP::setBMPInfo(ImageType type, uint32_t width, uint32_t height)
     head.info.biClrUsed       = 0x00;       // 4byte，位图使用的颜色数，如果为0，则颜色数为2的biBitCount次方
     head.info.biClrImportant  = 0x00;       // 4byte，重要的颜色数，0代表所有颜色都重要
 
-    this->type = type;
-    applyArrayRGB();    // 指向RGB数据的二位数组头指针
-
-    this->lineLegnth    = (head.info.biWidth*head.info.biBitCount+31)/32*4; // 扫描的单行数据长度
-    this->width         = head.info.biWidth;    // BMP位图的长度
-    this->height        = head.info.biHeight;   // BMP位图的高度
-    this->offset        = head.file.bfOffBits;  // 偏移数，即位图文件头+位图信息头+调色板的大小
-    this->redundant     = head.info.biWidth % 4;// 补齐4字节需要的字节数
+    lineLegnth    = (head.info.biWidth*head.info.biBitCount+31)/32*4; // 扫描的单行数据长度
+    width         = head.info.biWidth;    // BMP位图的长度
+    height        = head.info.biHeight;   // BMP位图的高度
+    offset        = head.file.bfOffBits;  // 偏移数，即位图文件头+位图信息头+调色板的大小
+    redundant     = head.info.biWidth % 4;// 补齐4字节需要的字节数
 
     head.info.biSizeImage = head.info.biWidth * head.info.biHeight * 3
                             + head.info.biHeight * redundant;           // 4byte，全部像素占用的字节数，BI_RGB时可设为0
     head.file.bfSize = 138 + head.info.biSizeImage;                     // 4byte，位图文件的大小
-
     sizeImage   = head.file.bfSize;     // 全部像素占用的字节数
-}
-
-BMP::~BMP()
-{
-    deleteArrayRGB();
-}
-
-/**
- * @description: 申请RGB动态数组内存
- * @param {type}
- */
-void BMP::applyArrayRGB()
-{
-    deleteArrayRGB();
-    if (type == RGB) {
-        rgb = new RGBInfoNode[head.info.biHeight * head.info.biWidth];
-        if (rgb == NULL) {
-            printf("Fatal: Malloc failed to allocate memory. Memory release failure.\n");
-            exit(-1);
-        }
-    }
-    else if (type == GARY || type == BINARY) {
-        gary = new uint8_t[head.info.biHeight * head.info.biWidth];
-        if (gary == NULL) {
-            printf("Fatal: Malloc failed to allocate memory. Memory release failure.\n");
-            exit(-1);
-        }
-    }
-}
-
-/**
- * @description: 撤销RGB动态数组内存
- * @param {type}
- */
-void BMP::deleteArrayRGB()
-{
-    if (rgb) {
-        delete[] rgb;
-        rgb = NULL;
-    }
-    if (gary) {
-        delete[] gary;
-        gary = NULL;
-    }
-}
-
-/**
- * @description: 得到BMP图像的RGB信息
- * @param {type} rgbInfo {RGBInfoNode *}: 储存RGB信息的首地址
- * @return:
- */
-bool BMP::getPointInfo(RGBInfoNode* rgbInfo, uint32_t width, uint32_t height)
-{
-    if (type == RGB) {
-        if (rgb == NULL) {
-            std::cout << __FILE__ << "," << __func__ << "," << __LINE__ << " The BMP image lacks RGB information." << std::endl;
-            return false;
-        }
-        if (width < head.info.biWidth && height < head.info.biHeight) {
-            *rgbInfo = *(rgb + height * head.info.biWidth + width);
-        }
-        return true;
-    }
-    else if (type == GARY || type == BINARY)
-    {
-        if (gary == NULL) {
-            std::cout << __FILE__ << "," << __func__ << "," << __LINE__ << " The BMP image lacks gary information." << std::endl;
-            return false;
-        }
-        uint8_t colorInfo = *(gary + height * head.info.biWidth + width);
-
-        rgbInfo->red   = colorInfo;
-        rgbInfo->green = colorInfo;
-        rgbInfo->blue  = colorInfo;
-        return true;
-    }
-    return false;
-}
-
-bool BMP::getPointInfo(uint8_t* colorInfo, uint32_t width, uint32_t height)
-{
-    if (type == GARY || type == BINARY)
-    {
-        if (gary == NULL) {
-            std::cout << __FILE__ << "," << __func__ << "," << __LINE__ << " The BMP image lacks gary information." << std::endl;
-            return false;
-        }
-        *colorInfo = *(gary + height * head.info.biWidth + width);
-        return true;
-    }
-    return false;
-}
-
-/**
- * @description: 得到BMP图像的颜色信息
- * @param {type} colorInfo {uint8_t *}: 储存颜色信息的首地址
- * @return: {bool} true: succeed, false: fail
- */
-bool BMP::getColorInfo(RGBInfoNode* rgbInfo, bool show)
-{
-    if (type == RGB)
-    {
-        if (rgb == NULL) {
-            std::cout << __FILE__ << "," << __func__ << "," << __LINE__ << " The BMP image lacks RGB information." << std::endl;
-            return false;
-        }
-        memcpy(rgbInfo, rgb, sizeof(RGBInfoNode) * head.info.biHeight * head.info.biWidth);
-        if (show == true) { showColorInfo(); }
-        return true;
-    }
-    return false;
-}
-
-bool BMP::getColorInfo(uint8_t *colorInfo, bool show)
-{
-    if (type == GARY || type == BINARY)
-    {
-        if (gary == NULL) {
-            std::cout << __FILE__ << "," << __func__ << "," << __LINE__ << " The BMP image lacks gary information." << std::endl;
-            return false;
-        }
-        memcpy(colorInfo, gary, sizeof(uint8_t) * head.info.biHeight * head.info.biWidth);
-        if (show == true) { showColorInfo(); }
-        return true;
-    }
-    return false;
-}
-
-void BMP::showColorInfo()
-{
-    if (type == RGB)
-    {
-        if (rgb)
-        {
-            RGBInfoNode *temp;
-            for (uint32_t r = 0; r < head.info.biHeight; ++r)
-            {
-                for (uint32_t c = 0; c < head.info.biWidth; ++c)
-                {
-                    temp = rgb + r * head.info.biWidth + c;
-                    printf("%3d,%3d,%3d,", temp->red, temp->green, temp->blue);
-                }
-                printf("\n");
-            }
-        }
-    }
-    else if (type == GARY || type == BINARY)
-    {
-        if (gary)
-        {
-            for (uint32_t r = 0; r < head.info.biHeight; ++r)
-            {
-                for (uint32_t c = 0; c < head.info.biWidth; ++c)
-                {
-                    printf("%3d,", *(gary + r * head.info.biWidth + c));
-                }
-                printf("\n");
-            }
-        }
-    }
-}
-
-void BMP::setPoint(RGBInfoNode &rgbInfo, uint32_t width, uint32_t height)
-{
-    if (type == RGB)
-    {
-        if (rgb) {
-            if (width < head.info.biWidth && height < head.info.biHeight)
-            {
-                *(rgb + height * head.info.biWidth + width) = rgbInfo;
-            }
-        }
-    }
-}
-
-void BMP::setPoint(uint8_t colorInfo, uint32_t width, uint32_t height)
-{
-    if (type == GARY || type == BINARY)
-    {
-        if (gary) {
-            if (width < head.info.biWidth && height < head.info.biHeight)
-            {
-                *(gary + height * head.info.biWidth + width) = colorInfo;
-            }
-        }
-    }
-}
-
-bool BMP::converImageType(ImageType type)
-{
-    if (this->type == RGB)
-    {
-        if (type == GARY)
-        {
-            if (rgb)
-            {
-                this->type = type;
-
-                // 先确保释放 gary 指向 NULL
-                if (gary) {
-                    delete[] gary;
-                    gary = NULL;
-                }
-
-                // 申请保存灰度的动态内存
-                gary = new uint8_t[head.info.biHeight * head.info.biWidth];
-                if (gary == NULL) {
-                    printf("Fatal: Malloc failed to allocate memory. Memory release failure.\n");
-                    return false;
-                }
-
-                // RGB 转换成 GARY
-                RGBInfoNode* temp;
-                for (uint32_t r = 0; r < head.info.biHeight; ++r)
-                {
-                    for (uint32_t c = 0; c < head.info.biWidth; ++c)
-                    {
-                        temp = rgb + r * head.info.biWidth + c;
-                        *(gary + r * head.info.biWidth + c) = (temp->red + temp->green + temp->blue) / 3;
-                    }
-                }
-
-                // 释放 rgb 指向的内存地址
-                if (rgb) {
-                    delete[] rgb;
-                    rgb = NULL;
-                }
-                return true;
-            }
-        }
-    }
-    else if (this->type == BINARY)
-    {
-        if (type == GARY)
-        {
-            if (gary)
-            {
-                this->type = type;
-
-                // BINARY 转换成 GARY
-                for (uint32_t r = 0; r < head.info.biHeight; ++r)
-                {
-                    for (uint32_t c = 0; c < head.info.biWidth; ++c)
-                    {
-                        if (*(gary + r * head.info.biWidth + c))
-                        {
-                            *(gary + r * head.info.biWidth + c) = 255;
-                        }
-                        else
-                        {
-                            *(gary + r * head.info.biWidth + c) = 0;
-                        }
-                    }
-                }
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-/**
- * @description: 清空图像rgb信息
- * @return: {bool} true: succeed, false: fail
- */
-bool BMP::clear()
-{
-    if (rgb && head.info.biWidth > 0 && head.info.biHeight > 0)
-    {
-        memset(rgb, 0, sizeof(RGBInfoNode) * head.info.biWidth * head.info.biHeight);
-        return true;
-    }
-    return false;
-}
-
-/**
- * @description: 得到图像的对比度
- * @param {type}
- * @return: {double} 图像的对比度
- */
-double BMP::getContrast()
-{
-    calculateContrast();
-    return contrast;
 }
 
 /**
@@ -463,7 +125,7 @@ double BMP::getContrast()
  */
 void BMP::bitmap_file_show()
 {
-    printf("--------------------------------------\n");
+    printf("\n--------------------------------------\n");
     printf("bitmap-file header\n\n");
 #ifdef _WIN32
     printf("bfType: %7c%c (%d)\n", bfType/256, bfType%256, bfType);
@@ -493,7 +155,7 @@ void BMP::bitmap_file_show()
  */
 void BMP::bitmap_info_show()
 {
-    printf("--------------------------------------\n");
+    printf("\n--------------------------------------\n");
     printf("bitmap-information header\n\n");
     printf("biSize: %15d B\n", head.info.biSize);
     printf("biWidth: %14d pixel\n", head.info.biWidth);
@@ -526,142 +188,169 @@ void BMP::bitmap_info_show()
 }
 
 /**
- * @description: 显示bmp位图的图像信息
- * @param {type}
+ * @description: 得到BMP图像的RGB信息
+ * @param {type} rgbInfo {RGBInfoNode *}: 储存RGB信息的首地址
  * @return:
  */
-void BMP::imageInfo_show()
+#define CHECK_ARRAY(array, func, line) \
+do { \
+    if (array == NULL) { \
+        std::cout << __FILE__ << "," << func << "," << line << " The BMP image lacks RGB or gary information." << std::endl; \
+        return false; \
+    } \
+} while(0)
+
+bool BMP::setPoint(RGBInfoNode rgbInfo, uint32_t width, uint32_t height)
 {
-    printf("--------------------------------------\n");
-    printf("contrast: %13.2f\n", contrast);
-    printf("--------------------------------------\n");
+    CHECK_ARRAY(rgb, __func__, __LINE__);
+    rgb[height][width] = rgbInfo;
+    return true;
+}
+
+bool BMP::setPoint(uint8_t garyInfo, uint32_t width, uint32_t height)
+{
+    CHECK_ARRAY(gary, __func__, __LINE__);
+    gary[height][width] = garyInfo;
+    return true;
 }
 
 /**
- * @description: 计算图像的对比度
- * @param {type}
+ * @description: 得到BMP图像的RGB信息
+ * @param {type} rgbInfo {RGBInfoNode *}: 储存RGB信息的首地址
  * @return:
  */
-bool BMP::calculateContrast()
+bool BMP::getPoint(RGBInfoNode* rgbInfo, uint32_t width, uint32_t height)
 {
-    if (rgb == NULL) {
-        printf("Fatal: Missing RGB information.\n");
-        return false;
-    }
-    if (height == 0) {
-        std::cout << __FILE__ << "," << __func__ << "," << __LINE__ << " The height of the image is 0 pixels." << std::endl;
-        return false;
-    }
-    if (width == 0) {
-        std::cout << __FILE__ << "," << __func__ << "," << __LINE__ << " The width of the image is 0 pixels." << std::endl;
-        return false;
-    }
+    CHECK_ARRAY(rgb, __func__, __LINE__);
+    *rgbInfo = rgb[height][width];
+    return true;
+}
 
-    uint32_t contrastTemp = 0;
-    uint32_t pair = 0;
+bool BMP::getPoint(uint8_t* garyInfo, uint32_t width, uint32_t height)
+{
+    CHECK_ARRAY(gary, __func__, __LINE__);
+    *garyInfo = gary[height][width];
+    return true;
+}
 
-    // 四角对比度
-    if (height > 1) {
-        contrastTemp += RGB_SUM_DEL(0, 0, 1, 0);
-        contrastTemp += RGB_SUM_DEL(height-1, 0, height-2, 0);
-        pair += 2;
-        if (width > 1) {
-            contrastTemp += RGB_SUM_DEL(0, width-1, 1, width-1);
-            contrastTemp += RGB_SUM_DEL(height-1, width-1, height-2, width-1);
-            pair += 2;
-        }
-    }
-    if (width > 1) {
-        contrastTemp += RGB_SUM_DEL(0, 0, 0, 1);
-        contrastTemp += RGB_SUM_DEL(0, width-1, 0, width-2);
-        pair += 2;
-        if (height > 1) {
-            contrastTemp += RGB_SUM_DEL(height-1, 0, height-1, 1);
-            contrastTemp += RGB_SUM_DEL(height-1, width-1, height-1, width-2);
-            pair += 2;
-        }
-    }
-    if (height > 2 && width > 2) {
-        pair += (height-2) * 6;
-        pair += (width-2) * 6;
-        pair += (width-2) * (width-2) * 4;
-    }
-    contrast = static_cast<double>(contrastTemp) / 3 / pair;
-
-    // 边缘对比度
-    for (uint32_t r = 1; r < height-1; ++r)
+/**
+ * @description: 得到BMP图像的颜色信息
+ * @param {type} garyInfo {uint8_t *}: 储存颜色信息的首地址
+ * @return: {bool} true: succeed, false: fail
+ */
+bool BMP::screenShot(RGBInfoNode* rgbInfo, uint32_t w_sta, uint32_t h_sta, uint32_t width, uint32_t height)
+{
+    CHECK_ARRAY(rgb, __func__, __LINE__);
+    for (uint32_t h = h_sta; h < h_sta + height; ++h)
     {
-        contrastTemp  = RGB_SUM_DEL(r, 0, r-1, 0);
-        contrastTemp += RGB_SUM_DEL(r, 0, r+1, 0);
-        contrastTemp += RGB_SUM_DEL(r, 0, r, 1);
-        contrastTemp += RGB_SUM_DEL(r, width-1, r-1, width-1);
-        contrastTemp += RGB_SUM_DEL(r, width-1, r+1, width-1);
-        contrastTemp += RGB_SUM_DEL(r, width-1, r, width-2);
-        contrast += static_cast<double>(contrastTemp) / 3 / pair;
-
-    }
-    for (uint32_t c = 1; c < width-1; ++c)
-    {
-        contrastTemp  = RGB_SUM_DEL(0, c, 0, c-1);
-        contrastTemp += RGB_SUM_DEL(0, c, 0, c+1);
-        contrastTemp += RGB_SUM_DEL(0, c, 1, c);
-        contrastTemp += RGB_SUM_DEL(height-1, c, height-1, c-1);
-        contrastTemp += RGB_SUM_DEL(height-1, c, height-1, c+1);
-        contrastTemp += RGB_SUM_DEL(height-1, c, height-2, c);
-        contrast += static_cast<double>(contrastTemp) / 3 / pair;
-
-    }
-
-    // 中间区域对比度
-    for (uint32_t r = 1; r < height-1; ++r)
-    {
-        for (uint32_t c = 1; c < width-1; ++c)
+        if (h >= head.info.biHeight) { break; }
+        for (uint32_t w = w_sta; w < w_sta + width; ++w)
         {
-            contrastTemp  = RGB_SUM_DEL(r, c, r-1, c);
-            contrastTemp += RGB_SUM_DEL(r, c, r+1, c);
-            contrastTemp += RGB_SUM_DEL(r, c, r, c-1);
-            contrastTemp += RGB_SUM_DEL(r, c, r, c+1);
-            contrast += static_cast<double>(contrastTemp) / 3 / pair;
+            if (w >= head.info.biWidth) { break; }
+            *rgbInfo = rgb[h][w];
+            rgbInfo++;
         }
     }
     return true;
 }
 
-bool BMP::linear_contrast_expansion(uint8_t a, uint8_t b, uint8_t min, uint8_t max)
+bool BMP::screenShot(uint8_t *garyInfo, uint32_t w_sta, uint32_t h_sta, uint32_t width, uint32_t height)
 {
-    if (type == RGB)
+    CHECK_ARRAY(gary, __func__, __LINE__);
+    for (uint32_t h = h_sta; h < h_sta + height; ++h)
     {
-        // ...
+        if (h >= head.info.biHeight) { break; }
+        for (uint32_t w = w_sta; w < w_sta + width; ++w)
+        {
+            if (w >= head.info.biWidth) { break; }
+            *garyInfo = gary[h][w];
+            garyInfo++;
+        }
+    }
+    return true;
+}
+
+/**
+ * @description: 填充函数
+ * @param {type}    rgbInfo {RGBInfoNode *}: 储存rgb信息的数组首地址
+ *                  garyInfo {uint8_t *}: 储存gary信息的数组首地址
+ *                  width {uint32_t}: 图像的宽度
+ *                  height {uint32_t}: 图像的高度
+ */
+bool BMP::fill(RGBInfoNode *rgbInfo, uint32_t w_sta, uint32_t h_sta, uint32_t width, uint32_t height)
+{
+    CHECK_ARRAY(rgb, __func__, __LINE__);
+    for (uint32_t h = h_sta; h < h_sta + height; ++h)
+    {
+        if (h >= head.info.biHeight) { break; }
+        for (uint32_t w = w_sta; w < w_sta + width; ++w)
+        {
+            if (w >= head.info.biWidth) { break; }
+            rgb[h][w] = *rgbInfo;
+            rgbInfo++;
+        }
+    }
+    return true;
+}
+
+bool BMP::fill(uint8_t *garyInfo, uint32_t w_sta, uint32_t h_sta, uint32_t width, uint32_t height)
+{
+    CHECK_ARRAY(gary, __func__, __LINE__);
+    for (uint32_t h = h_sta; h < h_sta + height; ++h)
+    {
+        if (h >= head.info.biHeight) { break; }
+        for (uint32_t w = w_sta; w < w_sta + width; ++w)
+        {
+            if (w >= head.info.biWidth) { break; }
+            gary[h][w] = *garyInfo;
+            garyInfo++;
+        }
+    }
+    return true;
+}
+
+/**
+ * @description: 清空图像rgb信息
+ * @return: {bool} true: succeed, false: fail
+ */
+bool BMP::clear()
+{
+    if (rgb != NULL)
+    {
+        for (uint32_t h = 0; h < head.info.biHeight; ++h)
+        {
+            memset(rgb[h], 0, sizeof(RGBInfoNode) * head.info.biWidth);
+        }
         return true;
     }
-    else if (type == GARY)
+    if (gary != NULL)
     {
-        uint8_t *temp;
-        double  slope = (max - min) / (b - a);
-
-        for (uint32_t r = 0; r < head.info.biHeight; ++r)
+        for (uint32_t h = 0; h < head.info.biHeight; ++h)
         {
-            for (uint32_t c = 0; c < head.info.biWidth; ++c)
-            {
-                temp = gary + r * head.info.biWidth + c;
-
-                if (*temp > b)
-                {
-                    *temp = max;
-                }
-                else if (a < *temp && *temp < b)
-                {
-                    *temp = static_cast<uint8_t>(slope * (*temp - a) + min);
-                }
-                else
-                {
-                    *temp = min;
-                }
-            }
+            memset(gary[h], 0, sizeof(uint8_t) * head.info.biWidth);
         }
         return true;
     }
     return false;
+}
+
+/**
+ * @description: RGB 格式转化成 GARY 格式
+ * @return: {bool} true: succeed, false: fail
+ */
+bool BMP::convertGARY()
+{
+    CHECK_ARRAY(rgb, __func__, __LINE__);
+    applyArray(gary);
+    for (uint32_t h = 0; h < head.info.biHeight; ++h)
+    {
+        for (uint32_t w = 0; w < head.info.biWidth; ++w)
+        {
+            gary[h][w] = (rgb[h][w].red + rgb[h][w].green + rgb[h][w].blue) / 3;
+        }
+    }
+    deleteArray(rgb);
+    return true;
 }
 
 /**
@@ -697,14 +386,12 @@ bool BMP::read(const char *filePath, bool showInfo)
         std::cout << __FILE__ << "," << __func__ << "," << __LINE__ << " The image is too large. Please check if the image is damaged." << std::endl;
     }
     else {
-        applyArrayRGB();    // 指向RGB数据的二位数组头指针
+        deleteArray(gary);
+        applyArray(rgb); // 指向RGB数据的二位数组头指针
         for (uint32_t iy = 0; iy < head.info.biHeight; ++iy) {
             //因为bmp文件的原点是左下角，所以bmp图片需要顺着y轴的反方向来读取
             fseek(fp, head.file.bfOffBits + (head.info.biHeight-1 - iy) * lineLegnth, SEEK_SET); //最后一行开始读取
-            fread(rgb + iy * head.info.biWidth, sizeof(RGBInfoNode), head.info.biWidth, fp);
-        }
-        if (showInfo == true) {
-            imageInfo_show();
+            fread(rgb[iy], sizeof(RGBInfoNode), head.info.biWidth, fp);
         }
     }
     fclose(fp);
@@ -732,7 +419,6 @@ bool BMP::write(const char *filePath, bool showInfo)
     if (showInfo == true) {
         bitmap_file_show(); // 显示文件头结构体信息
         bitmap_info_show(); // 显示图像数据头结构体信息
-        imageInfo_show();
     }
 
     uint32_t ix = 0;
@@ -746,74 +432,36 @@ bool BMP::write(const char *filePath, bool showInfo)
         fputc(0x00, fp);
     }
 
-    if (type == RGB)
+    if (rgb != NULL)
     {
         for (uint32_t iy = 0; iy < head.info.biHeight; ++iy) {
-            fwrite((rgb + (head.info.biHeight-1 - iy) * head.info.biWidth), sizeof(RGBInfoNode), head.info.biWidth, fp);
+            fwrite(rgb[head.info.biHeight-1 - iy], sizeof(RGBInfoNode), head.info.biWidth, fp);
             for (uint32_t ix = 0; ix < redundant; ++ix) {
                 fputc(0x00, fp);
             }
         }
     }
-    else if (type == GARY || type == BINARY)
+    else
     {
-        RGBInfoNode *rgb = new RGBInfoNode[head.info.biHeight * head.info.biWidth];
-        if (rgb == NULL) {
-            printf("Fatal: Malloc failed to allocate memory. Memory release failure.\n");
-            return false;
-        }
-
-        RGBInfoNode* temp_rgb;
-        uint8_t temp_gary;
-
-        if (type == GARY)
+        RGBInfoNode **rgb_temp = NULL;
+        applyArray(rgb_temp);
+        for (uint32_t h = 0; h < head.info.biHeight; ++h)
         {
-            for (uint32_t r = 0; r < head.info.biHeight; ++r)
+            for (uint32_t w = 0; w < head.info.biWidth; ++w)
             {
-                for (uint32_t c = 0; c < head.info.biWidth; ++c)
-                {
-                    temp_rgb = rgb + r * head.info.biWidth + c;
-                    temp_gary = *(gary + r * head.info.biWidth + c);
-
-                    temp_rgb->red   = temp_gary;
-                    temp_rgb->green = temp_gary;
-                    temp_rgb->blue  = temp_gary;
-                }
+                rgb_temp[h][w].red   = gary[h][w];
+                rgb_temp[h][w].green = gary[h][w];
+                rgb_temp[h][w].blue  = gary[h][w];
             }
         }
-        else
-        {
-            for (uint32_t r = 0; r < head.info.biHeight; ++r)
-            {
-                for (uint32_t c = 0; c < head.info.biWidth; ++c)
-                {
-                    temp_rgb = rgb + r * head.info.biWidth + c;
-                    temp_gary = *(gary + r * head.info.biWidth + c);
-
-                    if (temp_gary == 0) {
-                        temp_rgb->red   = 0;
-                        temp_rgb->green = 0;
-                        temp_rgb->blue  = 0;
-                    }
-                    else {
-                        temp_rgb->red   = 255;
-                        temp_rgb->green = 255;
-                        temp_rgb->blue  = 255;
-                    }
-                }
-            }
-        }
-
         for (uint32_t iy = 0; iy < head.info.biHeight; ++iy) {
-            fwrite((rgb + (head.info.biHeight-1 - iy) * head.info.biWidth), sizeof(RGBInfoNode), head.info.biWidth, fp);
+            fwrite(rgb_temp[head.info.biHeight-1 - iy], sizeof(RGBInfoNode), head.info.biWidth, fp);
             for (uint32_t ix = 0; ix < redundant; ++ix) {
                 fputc(0x00, fp);
             }
         }
-
-        delete[] rgb;
+        deleteArray(rgb_temp);
     }
-
     fclose(fp);
     return true;
 }
