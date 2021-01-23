@@ -10,7 +10,7 @@
 
 **macOS / linux**
 
-```
+```shell
 $ mkdir build && cd build   # Make a build directory in the top level directory
 $ cmake .. && make          # Compile
 $ cd .. && ./main           # Return to home directory and Run the program
@@ -18,53 +18,69 @@ $ cd .. && ./main           # Return to home directory and Run the program
 
 **or**
 
-```
+```shell
 $ ./build.sh      # Run 'build.sh', You can double click on
 $ ./main          # Run the program
 ```
 ## Program structure
 
 ```
+.
 ├── CMakeLists.txt
-├── LICENSE
+├── README
 ├── README.md
 ├── build.sh
-├── image
-├── image.bmp
 ├── include
-│   ├── bmp.h
-│   └── linuxTool.h
-├── main
-├── src
-│   ├── bmp.cpp
-│   ├── imageInfo.h
-│   ├── linuxTool.cpp
-│   └── main.cpp
-└── strightRoadImage.bmp
+│   └── bmp.h
+└── src
+    ├── bmp.cpp
+    └── main.cpp
 ```
 
-## 一、什么是位图
+## 个别函数介绍：
+
+在本项目中，我将 RGB 色域和 GARY（255阶灰度）分开存储在不同的二维数组中，两者不会同时存在，请调用相应函数时注意区分，如（其他类似函数同理）：
+
+```c++
+bool screenShot(RGBInfoNode* rgbInfo); // 该函数的作用是截图 BMP 对象数据内存中的所有数据到数组 rgbInfo 中
+bool screenShot(uint8_t *garyInfo);
+```
+
+为同名重载函数，两者处理的对象不同，如需进行 RGB 和 GARY 之间的色域转换，请使用如下函数：
+
+```c++
+bool gary2rgb();
+bool rgb2gary();
+```
+
+## 如何使用本项目：
+
+在本项目的 `src/main.cpp` 有相关测试函数。
+
+## 补充资料：
+
+### 一、什么是位图
 
 计算机能以位图和矢量图格式显示图像。
 
-### 1、位图(Bitmap)：
+#### 1、位图(Bitmap)：
 
 图像又称点阵图或光栅图，它使用我们称为像素(象素，Pixel)的一格一格的小点来描述图像。计算机屏幕其实就是一张包含大量像素点的网格。当我们把位图放大时，每一个像素小点看上去就像是一个个马赛克色块。
 
-### 2、矢量图(Vector)
+#### 2、矢量图(Vector)
 
 使用直线和曲线来描述图形，这些图形的元素是一些点、线、矩形、多边形、圆和弧线等等，它们都是通过数学公式计算获得的。
 
 位图和矢量图最简单的区别就是：矢量图可以无限放大，而且不会失真；而位图则不能。
 像Photoshop(PS)这样主要用于处理位图的软件，我们称之为图像处理软件；专门处理矢量图的软件，我们称之为图形设计软件，例如Adobe Illustrator，CorelDRAW，Flash MX等。
 
-## 二、BMP位图文件
+### 二、BMP位图文件
 
 常见的图像文件格式有：**BMP、JPG(JPE,JPEG)、GIF**等。
 
 BMP图像文件(Bitmap-File)格式是Windows采用的图像文件存储格式，在Windows环境下运行的所有图像处理软件都支持这种格式。Windows 3.0以后的BMP文件都是指设备无关位图(DIB，device-independent bitmap)。**BMP位图文件默认的文件扩展名是.BMP，有时它也会以.DIB或.RLE作扩展名。**
 
-### 1. BMP文件结构
+#### 1. BMP文件结构
 
 BMP文件由4部分组成：
 
@@ -93,7 +109,7 @@ bfOffBits|4字节|偏移数，即位图文件头+位图信息头+调色板的大
 
 ![](README/20140514113957562.png)
 
-#### 1.2 位图信息头
+##### 1.2 位图信息头
 
 位图信息头共40字节：
 
@@ -115,11 +131,11 @@ biClrImportant|4字节|重要的颜色数，0代表所有颜色都重要|0
 
 ![](README/20140514114002625.png)
 
-#### 1.3 颜色表
+##### 1.3 颜色表
 
 24位真彩色位图没有颜色表。为了简化，只讨论24位真彩色位图。
 
-#### 1.4 颜色点阵数据
+##### 1.4 颜色点阵数据
 
 位图全部的像素，是按照自下向上，自左向右的顺序排列的。
 

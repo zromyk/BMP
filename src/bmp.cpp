@@ -12,7 +12,6 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
-#include <cmath>
 #include "bmp.h"
 
 /**
@@ -22,6 +21,24 @@
  *                  height {uint32_t}: 图像的高度
  */
 BMP::BMP(){}
+
+BMP::BMP(uint32_t width, uint32_t height)
+{
+    setBMPInfo(width, height);
+    deleteArray(gary);
+    applyArray(rgb);
+
+    RGBInfoNode rgbInfo = {0, 0, 0};
+    for (uint32_t h = 0; h < height; ++h)
+    {
+        if (h >= head.info.biHeight) { break; }
+        for (uint32_t w = 0; w < width; ++w)
+        {
+            if (w >= head.info.biWidth) { break; }
+            rgb[h][w] = rgbInfo;
+        }
+    }
+}
 
 BMP::BMP(RGBInfoNode *rgbInfo, uint32_t width, uint32_t height)
 {
@@ -238,6 +255,11 @@ bool BMP::getPoint(uint8_t* garyInfo, uint32_t width, uint32_t height)
  * @param {type} garyInfo {uint8_t *}: 储存颜色信息的首地址
  * @return: {bool} true: succeed, false: fail
  */
+bool BMP::screenShot(RGBInfoNode* rgbInfo) 
+{
+    screenShot(rgbInfo, 0, 0, head.info.biWidth, head.info.biHeight);
+}
+
 bool BMP::screenShot(RGBInfoNode* rgbInfo, uint32_t w_sta, uint32_t h_sta, uint32_t width, uint32_t height)
 {
     CHECK_ARRAY(rgb, __func__, __LINE__);
@@ -252,6 +274,11 @@ bool BMP::screenShot(RGBInfoNode* rgbInfo, uint32_t w_sta, uint32_t h_sta, uint3
         }
     }
     return true;
+}
+
+bool BMP::screenShot(uint8_t *garyInfo) 
+{
+    screenShot(garyInfo, 0, 0, head.info.biWidth, head.info.biHeight);
 }
 
 bool BMP::screenShot(uint8_t *garyInfo, uint32_t w_sta, uint32_t h_sta, uint32_t width, uint32_t height)
@@ -277,6 +304,11 @@ bool BMP::screenShot(uint8_t *garyInfo, uint32_t w_sta, uint32_t h_sta, uint32_t
  *                  width {uint32_t}: 图像的宽度
  *                  height {uint32_t}: 图像的高度
  */
+bool BMP::fill(RGBInfoNode *rgbInfo) 
+{
+    fill(rgbInfo, 0, 0, head.info.biWidth, head.info.biHeight);
+}
+
 bool BMP::fill(RGBInfoNode *rgbInfo, uint32_t w_sta, uint32_t h_sta, uint32_t width, uint32_t height)
 {
     CHECK_ARRAY(rgb, __func__, __LINE__);
@@ -291,6 +323,11 @@ bool BMP::fill(RGBInfoNode *rgbInfo, uint32_t w_sta, uint32_t h_sta, uint32_t wi
         }
     }
     return true;
+}
+
+bool BMP::fill(uint8_t *garyInfo) 
+{
+    fill(garyInfo, 0, 0, head.info.biWidth, head.info.biHeight);
 }
 
 bool BMP::fill(uint8_t *garyInfo, uint32_t w_sta, uint32_t h_sta, uint32_t width, uint32_t height)
@@ -338,7 +375,24 @@ bool BMP::clear()
  * @description: RGB 格式转化成 GARY 格式
  * @return: {bool} true: succeed, false: fail
  */
-bool BMP::convertGARY()
+bool BMP::gary2rgb()
+{
+    CHECK_ARRAY(gary, __func__, __LINE__);
+    applyArray(rgb);
+    for (uint32_t h = 0; h < head.info.biHeight; ++h)
+    {
+        for (uint32_t w = 0; w < head.info.biWidth; ++w)
+        {
+            rgb[h][w].red   = gary[h][w];
+            rgb[h][w].green = gary[h][w];
+            rgb[h][w].blue  = gary[h][w];
+        }
+    }
+    deleteArray(gary);
+    return true;
+}
+
+bool BMP::rgb2gary()
 {
     CHECK_ARRAY(rgb, __func__, __LINE__);
     applyArray(gary);

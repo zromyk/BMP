@@ -33,6 +33,7 @@
 
 # =========================
 # Windows image file caches
+# =========================
 Thumbs.db
 ehthumbs.db
 
@@ -55,6 +56,7 @@ $RECYCLE.BIN/
 # Operating System Files
 # =========================
 
+# =========================
 # OSX
 # =========================
 
@@ -79,3 +81,8 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# =========================
+# Cmake
+# =========================
+build

@@ -1,25 +1,25 @@
 /*
  * @Description: 
- * @FilePath: /ImageDrive/main.cpp
+ * @FilePath: /BMP/src/main.cpp
  * @Author: Wei Zhou
  * @Github: https://github.com/muyi2414
  * @Date: 2020-03-05 11:13:00
  * @LastEditors: Wei Zhou
- * @LastEditTime: 2020-03-06 16:32:12
+ * @LastEditTime: 2021-01-23 14:14:52
  * @Copyright: Copyright © 2017 muyiro. All rights reserved.
  */
 
 #include <iostream>
 #include "bmp.h"
 
-#define test(str, fun) \
+#define test(str, func) \
     do { \
         printf("test %-24s", str); \
-        if (fun) {printf("Succeed.\n");} \
+        if (func) {printf("Succeed.\n");} \
         else     {printf("Failure!!!\n");} \
     } while(0)
 
-int main(int argc, char const *argv[])
+void test_func(void)
 {
     unsigned char origin[][8] =
     {
@@ -50,7 +50,7 @@ int main(int argc, char const *argv[])
     uint8_t garyInfo_fill[2][2] = {255, 255, 255, 255};
 
     // 注意读取的 BMP 图片为 RGB 格式，请转化成 GARY 格式
-    test("convertGARY()",       bmp_read.convertGARY());
+    test("rgb2gary()",          bmp_read.rgb2gary());
     test("getPoint()",          bmp_read.getPoint(&garyInfo, 2, 2));
     test("setPoint()",          bmp_read.setPoint(255, 3, 3));  
         bmp_read.write("/Users/zhouwei/Desktop/BMP/bmp_write_setPoint.bmp");
@@ -59,5 +59,10 @@ int main(int argc, char const *argv[])
         bmp_read.write("/Users/zhouwei/Desktop/BMP/bmp_write_fill.bmp");
     test("clear()",             bmp_read.clear());   
         bmp_read.write("/Users/zhouwei/Desktop/BMP/bmp_write_clear.bmp");
+}
+
+int main(int argc, char const *argv[])
+{
+    test_func();
     return 0;
 }

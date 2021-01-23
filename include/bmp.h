@@ -33,9 +33,16 @@ public:
      *               height {uint32_t}: 图像的高度
      */
     BMP();
+    BMP(uint32_t width, uint32_t height);
     BMP(RGBInfoNode *rgbInfo, uint32_t width, uint32_t height);
     BMP(uint8_t *garyInfo, uint32_t width, uint32_t height);
     ~BMP();
+
+    /**
+     * @description: 判断是否有数据
+     * @return: {bool} true 有, false 无
+     */
+    inline bool isExists() {return !(rgb == NULL && gary == NULL);}
 
     /**
      * @description: 得到图像的高度 / 宽度
@@ -45,17 +52,11 @@ public:
     inline uint32_t getWidth() {return head.info.biWidth;}
 
     /**
-     * @description: 读取一张mbp图像的信息
+     * @description: 读取一张mbp图像的信息 / 生成一张BMP图片
      * @param {type} filePath {const char *}: 需要读取的MBP文件的路径
      * @return: {bool} true: succeed, false: fail
      */
     bool read(const char *filePath, bool showInfo = false);
-
-    /**
-     * @description: 生成一张BMP图片
-     * @param {type} filePath {const char *}: 需要读取的MBP文件的路径
-     * @return: {bool} true: succeed, false: fail
-     */
     bool write(const char *filePath, bool showInfo = false);
 
     /**
@@ -73,9 +74,13 @@ public:
      * @param {type} garyInfo {uint8_t *}: 储存颜色信息的首地址
      * @return: {bool} true: succeed, false: fail
      */
+    bool screenShot(RGBInfoNode* rgbInfo);
     bool screenShot(RGBInfoNode* rgbInfo, uint32_t w_sta, uint32_t h_sta, uint32_t width, uint32_t height);
+    bool screenShot(uint8_t *garyInfo);
     bool screenShot(uint8_t *garyInfo, uint32_t w_sta, uint32_t h_sta, uint32_t width, uint32_t height);
+    bool fill(RGBInfoNode *rgbInfo);
     bool fill(RGBInfoNode *rgbInfo, uint32_t w_sta, uint32_t h_sta, uint32_t width, uint32_t height);
+    bool fill(uint8_t *garyInfo);
     bool fill(uint8_t *garyInfo, uint32_t w_sta, uint32_t h_sta, uint32_t width, uint32_t height);
 
     /**
@@ -85,10 +90,11 @@ public:
     bool clear();
 
     /**
-     * @description: RGB 格式转化成 GARY 格式
+     * @description: RGB 与 GARY 格式相互转化
      * @return: {bool} true: succeed, false: fail
      */
-    bool convertGARY();
+    bool gary2rgb();
+    bool rgb2gary();
 
 private:
 
