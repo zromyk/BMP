@@ -42,7 +42,9 @@ public:
      * @description: 判断是否有数据
      * @return: {bool} true 有, false 无
      */
-    inline bool isExists() {return !(rgb == NULL && gary == NULL);}
+    inline bool is_rgb()    {return (rgb != NULL && gary == NULL);}
+    inline bool is_gary()   {return (rgb == NULL && gary != NULL);}
+    inline bool is_exists() {return (rgb != NULL || gary != NULL);}
 
     /**
      * @description: 得到图像的高度 / 宽度
@@ -163,7 +165,7 @@ typedef struct
     void applyArray(T** &point);
     template <typename T>
     void deleteArray(T** &point);
-    void bitmap_file_show();
-    void bitmap_info_show();
+    void bitmapFileShow();
+    void bitmapInfoShow();
     void setBMPInfo(uint32_t width, uint32_t height);
 };

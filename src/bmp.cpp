@@ -1,11 +1,11 @@
 /*
  * @Description:
- * @FilePath: /src/bmp.cpp
+ * @FilePath: /BMP/src/bmp.cpp
  * @Author: Wei Zhou
  * @Github: https://github.com/muyi2414
  * @Date: 2020-03-27 20:54:39
  * @LastEditors: Wei Zhou
- * @LastEditTime: 2020-05-05 10:11:18
+ * @LastEditTime: 2021-01-25 21:54:42
  * @Copyright: Copyright © 2017 muyiro. All rights reserved.
  */
 
@@ -13,6 +13,22 @@
 #include <cstdlib>
 #include <cstring>
 #include "bmp.h"
+
+#define DEBUG_MESSAGE(str)  printf("%s, %s, %d: %s\n", __FILE__, __func__, __LINE__, str)
+#define CHECK_ARRAY(array) \
+    do { \
+        if (array == NULL) { \
+            DEBUG_MESSAGE("The BMP image lacks RGB or gary information."); \
+            return false; \
+        } \
+    } while(0)
+#define CHECK_BORDER(width, height) \
+    do { \
+        if (width >= head.info.biWidth || height >= head.info.biHeight) { \
+            DEBUG_MESSAGE("The width or height input beyond the border."); \
+            return false; \
+        } \
+    } while(0)
 
 /**
  * @description: 构造函数
@@ -85,13 +101,13 @@ void BMP::applyArray(T** &array)
     deleteArray(array);
     array = new T*[head.info.biHeight];
     if (array == NULL) {
-        printf("Fatal: Malloc failed to allocate memory. Memory release failure.\n");
+        DEBUG_MESSAGE("Fatal: Malloc failed to allocate memory. Memory release failure.");
         exit(-1);
     }
     for (uint32_t h = 0; h < head.info.biHeight; ++h) {
         array[h] = new T[head.info.biWidth];
         if (array[h] == NULL) {
-            printf("Fatal: Malloc failed to allocate memory. Memory release failure.\n");
+            DEBUG_MESSAGE("Fatal: Malloc failed to allocate memory. Memory release failure.");
             exit(-1);
         }
     }
@@ -140,7 +156,7 @@ void BMP::setBMPInfo(uint32_t width, uint32_t height)
  * @param {type}
  * @return:
  */
-void BMP::bitmap_file_show()
+void BMP::bitmapFileShow()
 {
     printf("\n--------------------------------------\n");
     printf("bitmap-file header\n\n");
@@ -170,7 +186,7 @@ void BMP::bitmap_file_show()
  * @param {type}
  * @return:
  */
-void BMP::bitmap_info_show()
+void BMP::bitmapInfoShow()
 {
     printf("\n--------------------------------------\n");
     printf("bitmap-information header\n\n");
@@ -209,24 +225,21 @@ void BMP::bitmap_info_show()
  * @param {type} rgbInfo {RGBInfoNode *}: 储存RGB信息的首地址
  * @return:
  */
-#define CHECK_ARRAY(array, func, line) \
-do { \
-    if (array == NULL) { \
-        std::cout << __FILE__ << "," << func << "," << line << " The BMP image lacks RGB or gary information." << std::endl; \
-        return false; \
-    } \
-} while(0)
 
 bool BMP::setPoint(RGBInfoNode rgbInfo, uint32_t width, uint32_t height)
 {
-    CHECK_ARRAY(rgb, __func__, __LINE__);
+    CHECK_BORDER(width, height);
+    if (is_gary()) { gary2rgb(); }
+    CHECK_ARRAY(rgb);
     rgb[height][width] = rgbInfo;
     return true;
 }
 
 bool BMP::setPoint(uint8_t garyInfo, uint32_t width, uint32_t height)
 {
-    CHECK_ARRAY(gary, __func__, __LINE__);
+    CHECK_BORDER(width, height);
+    if (is_rgb()) { rgb2gary(); }
+    CHECK_ARRAY(gary);
     gary[height][width] = garyInfo;
     return true;
 }
@@ -238,14 +251,18 @@ bool BMP::setPoint(uint8_t garyInfo, uint32_t width, uint32_t height)
  */
 bool BMP::getPoint(RGBInfoNode* rgbInfo, uint32_t width, uint32_t height)
 {
-    CHECK_ARRAY(rgb, __func__, __LINE__);
+    CHECK_BORDER(width, height);
+     if (is_gary()) { gary2rgb(); }
+    CHECK_ARRAY(rgb);
     *rgbInfo = rgb[height][width];
     return true;
 }
 
 bool BMP::getPoint(uint8_t* garyInfo, uint32_t width, uint32_t height)
 {
-    CHECK_ARRAY(gary, __func__, __LINE__);
+    CHECK_BORDER(width, height);
+    if (is_rgb()) { rgb2gary(); }
+    CHECK_ARRAY(gary);
     *garyInfo = gary[height][width];
     return true;
 }
@@ -257,12 +274,13 @@ bool BMP::getPoint(uint8_t* garyInfo, uint32_t width, uint32_t height)
  */
 bool BMP::screenShot(RGBInfoNode* rgbInfo) 
 {
-    screenShot(rgbInfo, 0, 0, head.info.biWidth, head.info.biHeight);
+    return screenShot(rgbInfo, 0, 0, head.info.biWidth, head.info.biHeight);
 }
 
 bool BMP::screenShot(RGBInfoNode* rgbInfo, uint32_t w_sta, uint32_t h_sta, uint32_t width, uint32_t height)
 {
-    CHECK_ARRAY(rgb, __func__, __LINE__);
+    if (is_gary()) { gary2rgb(); }
+    CHECK_ARRAY(rgb);
     for (uint32_t h = h_sta; h < h_sta + height; ++h)
     {
         if (h >= head.info.biHeight) { break; }
@@ -278,12 +296,13 @@ bool BMP::screenShot(RGBInfoNode* rgbInfo, uint32_t w_sta, uint32_t h_sta, uint3
 
 bool BMP::screenShot(uint8_t *garyInfo) 
 {
-    screenShot(garyInfo, 0, 0, head.info.biWidth, head.info.biHeight);
+    return screenShot(garyInfo, 0, 0, head.info.biWidth, head.info.biHeight);
 }
 
 bool BMP::screenShot(uint8_t *garyInfo, uint32_t w_sta, uint32_t h_sta, uint32_t width, uint32_t height)
 {
-    CHECK_ARRAY(gary, __func__, __LINE__);
+    if (is_rgb()) { rgb2gary(); }
+    CHECK_ARRAY(gary);
     for (uint32_t h = h_sta; h < h_sta + height; ++h)
     {
         if (h >= head.info.biHeight) { break; }
@@ -306,12 +325,13 @@ bool BMP::screenShot(uint8_t *garyInfo, uint32_t w_sta, uint32_t h_sta, uint32_t
  */
 bool BMP::fill(RGBInfoNode *rgbInfo) 
 {
-    fill(rgbInfo, 0, 0, head.info.biWidth, head.info.biHeight);
+    return fill(rgbInfo, 0, 0, head.info.biWidth, head.info.biHeight);
 }
 
 bool BMP::fill(RGBInfoNode *rgbInfo, uint32_t w_sta, uint32_t h_sta, uint32_t width, uint32_t height)
 {
-    CHECK_ARRAY(rgb, __func__, __LINE__);
+    if (is_gary()) { gary2rgb(); }
+    CHECK_ARRAY(rgb);
     for (uint32_t h = h_sta; h < h_sta + height; ++h)
     {
         if (h >= head.info.biHeight) { break; }
@@ -327,12 +347,13 @@ bool BMP::fill(RGBInfoNode *rgbInfo, uint32_t w_sta, uint32_t h_sta, uint32_t wi
 
 bool BMP::fill(uint8_t *garyInfo) 
 {
-    fill(garyInfo, 0, 0, head.info.biWidth, head.info.biHeight);
+    return fill(garyInfo, 0, 0, head.info.biWidth, head.info.biHeight);
 }
 
 bool BMP::fill(uint8_t *garyInfo, uint32_t w_sta, uint32_t h_sta, uint32_t width, uint32_t height)
 {
-    CHECK_ARRAY(gary, __func__, __LINE__);
+    if (is_rgb()) { rgb2gary(); }
+    CHECK_ARRAY(gary);
     for (uint32_t h = h_sta; h < h_sta + height; ++h)
     {
         if (h >= head.info.biHeight) { break; }
@@ -377,7 +398,7 @@ bool BMP::clear()
  */
 bool BMP::gary2rgb()
 {
-    CHECK_ARRAY(gary, __func__, __LINE__);
+    CHECK_ARRAY(gary);
     applyArray(rgb);
     for (uint32_t h = 0; h < head.info.biHeight; ++h)
     {
@@ -394,7 +415,7 @@ bool BMP::gary2rgb()
 
 bool BMP::rgb2gary()
 {
-    CHECK_ARRAY(rgb, __func__, __LINE__);
+    CHECK_ARRAY(rgb);
     applyArray(gary);
     for (uint32_t h = 0; h < head.info.biHeight; ++h)
     {
@@ -416,7 +437,7 @@ bool BMP::read(const char *filePath, bool showInfo)
 {
     FILE *fp;
     if ((fp = fopen(filePath, "rb")) == NULL) {
-        std::cout << __FILE__ << "," << __func__ << "," << __LINE__ << " Can't open " << filePath << std::endl;
+        DEBUG_MESSAGE((std::string("Can't open ") + std::string(filePath)).c_str());
         return false;
     }
 #ifdef _WIN32
@@ -425,8 +446,8 @@ bool BMP::read(const char *filePath, bool showInfo)
     fread(&head, sizeof(BmpHeadNode), 1, fp);
 
     if (showInfo == true) {
-        bitmap_file_show(); // 显示文件头结构体信息
-        bitmap_info_show(); // 显示图像数据头结构体信息
+        bitmapFileShow(); // 显示文件头结构体信息
+        bitmapInfoShow(); // 显示图像数据头结构体信息
     }
     lineLegnth  = (head.info.biWidth*head.info.biBitCount+31)/32*4; // 扫描的单行数据长度
     width       = head.info.biWidth;    // BMP位图的长度
@@ -437,7 +458,7 @@ bool BMP::read(const char *filePath, bool showInfo)
 
     // 限制读取的图像长宽
     if (head.info.biHeight > 32768 || head.info.biWidth > 32768) {
-        std::cout << __FILE__ << "," << __func__ << "," << __LINE__ << " The image is too large. Please check if the image is damaged." << std::endl;
+        DEBUG_MESSAGE("The image is too large. Please check if the image is damaged.");
     }
     else {
         deleteArray(gary);
@@ -462,17 +483,17 @@ bool BMP::write(const char *filePath, bool showInfo)
     FILE *fp;
 
     if ((fp = fopen(filePath, "wb")) == NULL) {
-        std::cout << __FILE__ << "," << __func__ << "," << __LINE__ << " Can't build " << filePath << std::endl;
+        DEBUG_MESSAGE((std::string("Can't build ") + std::string(filePath)).c_str());
         return false;
     }
     if (rgb == NULL && gary == NULL) { // 如果没有rgb图像信息，发送错误消息
-        std::cout << __FILE__ << "," << __func__ << "," << __LINE__ << " Unable to find image information." << std::endl;
+        DEBUG_MESSAGE("Unable to find image information.");
         return false;
     }
 
     if (showInfo == true) {
-        bitmap_file_show(); // 显示文件头结构体信息
-        bitmap_info_show(); // 显示图像数据头结构体信息
+        bitmapFileShow(); // 显示文件头结构体信息
+        bitmapInfoShow(); // 显示图像数据头结构体信息
     }
 
     uint32_t ix = 0;
